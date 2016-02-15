@@ -12,10 +12,11 @@ How to use?
     QT       += network
     CONFIG   += c++11
 ```
-5. Some ubuntu versions also require the following line to your .pro file:
+* Some ubuntu versions also require the following line to your .pro file:
 ```
     QMAKE_CXXFLAGS += -std=c++11
 ```
+
 Changelog
 ---------
 ###0.6.1
