@@ -35,69 +35,68 @@ MainWindow::MainWindow(QWidget *parent) :
 {
     ui->setupUi(this);
 
-    //Initializes telegram which is not broadcastable (parameter 0). A broadcastable telegram requires parameter 1.
-    telegramListen = new QCodesysNVTelegram(0);
+    //Initializes telegram which carries data for plotter. The telegram is not broadcastable (parameter 0). A broadcastable telegram requires parameter 1.
+    telegramPlotData = new QCodesysNVTelegram(0);
     //CobID of the telegram
-    telegramListen->setCobId(477);
+    telegramPlotData->setCobId(477);
 
-    //Determines variable types of the telegram
-    QList <QCodesysNVType> variablesListen;
-    variablesListen << QCodesysNVType::REAL;
-    variablesListen << QCodesysNVType::REAL;
-    variablesListen << QCodesysNVType::REAL;
-    variablesListen << QCodesysNVType::REAL;
-    variablesListen << QCodesysNVType::REAL;
-    variablesListen << QCodesysNVType::REAL;
-    variablesListen << QCodesysNVType::REAL;
-    variablesListen << QCodesysNVType::REAL;
-    variablesListen << QCodesysNVType::BYTE;
-    telegramListen->setVariableTypes(variablesListen);
+    //Determines variable types of telegramPlotData
+    QList <QCodesysNVType> variablesPlotData;
+    variablesPlotData << QCodesysNVType::REAL;
+    variablesPlotData << QCodesysNVType::REAL;
+    variablesPlotData << QCodesysNVType::REAL;
+    variablesPlotData << QCodesysNVType::REAL;
+    variablesPlotData << QCodesysNVType::REAL;
+    variablesPlotData << QCodesysNVType::REAL;
+    variablesPlotData << QCodesysNVType::REAL;
+    variablesPlotData << QCodesysNVType::REAL;
+    variablesPlotData << QCodesysNVType::BYTE;
+    telegramPlotData->setVariableTypes(variablesPlotData);
 
-    //index of QList variables which will be plotted
+    //index of QList variablesPlotData which is plotted
     plotableVariable=4;
 
 
+    //Counter telegrams contain two variables: heart beat and counter
+    QList <QCodesysNVType> variablesCounter;
+    variablesCounter << QCodesysNVType::BOOL;
+    variablesCounter << QCodesysNVType::DWORD;
 
+
+    //The broadcastable telegram
+    telegramBroadcastedCounter= new QCodesysNVTelegram(1);
+    //CobID of the telegram
+    telegramBroadcastedCounter->setCobId(9999);
+    telegramBroadcastedCounter->setIP(QHostAddress::Broadcast);
+    telegramBroadcastedCounter->setPort(1202);
+    telegramBroadcastedCounter->setVariableTypes(variablesCounter);
+
+    telegramReceivedCounter = new QCodesysNVTelegram(0);
+    telegramReceivedCounter->setCobId(9999);
+    telegramReceivedCounter->setVariableTypes(variablesCounter);
 
     //Initializes socket which listen telegrams from any IP address to port 1202
     socket = new QCodesysNVSocket(QHostAddress::Any,1202);
 
-    //This adds the telegram to the telegram list in the socket. The socket monitors CobIDs of incoming telegrams and checks if the cobID of
-    //incoming telegram correspond to any in telegram list. If a telegram is found from the telegram list socket sends byte array to
+    //This adds telegrams to the telegram list in the socket. The socket monitors CobIDs of incoming telegrams and checks if the cobID of
+    //incoming telegram correspond to any in telegram list. If the telegram is found from the telegram list socket sends byte array to
     //the corresponding telegram.
-    socket->addTelegram(telegramListen);
+    socket->addTelegram(telegramPlotData);
+    socket->addTelegram(telegramReceivedCounter);
 
-    //Connect the update signal of the telegram to the telegramReceived slot
-    connect(telegramListen,SIGNAL(updated()),this,SLOT(telegramReceived()));
-
-
-
-
-
-
-
-    //The broadcastable telegram
-    telegramBroadcast= new QCodesysNVTelegram(1);
-    //CobID of the telegram
-    telegramBroadcast->setCobId(477);
-
-    //Telegram contains two variables: heart beat and counter
-    QList <QCodesysNVType> variablesBroadcast;
-    variablesBroadcast << QCodesysNVType::BOOL;
-    variablesBroadcast << QCodesysNVType::DWORD;
-    telegramBroadcast->setVariableTypes(variablesListen);
+    //connect updated() signals of telegrams to the corresponding slots in this class
+    connect(telegramPlotData,SIGNAL(updated()),this,SLOT(plotDataReceived()));
+    connect(telegramReceivedCounter,SIGNAL(updated()),this,SLOT(counterReceived()));
 
     //initializes values
     heartbeat=0;
     counter=0;
 
-    telegramBroadcast->setData(0,heartbeat);
-    telegramBroadcast->setData(1,counter);
-
-    ui->label_counter->setText(QString::number(counter));
+    telegramBroadcastedCounter->setData(0,heartbeat);
+    telegramBroadcastedCounter->setData(1,counter);
 
 
-    //Initiliazes timeinterval of the plotter
+    //initiliazes timeinterval of the plotter
     on_comboBox_timeinterval_currentIndexChanged(0);
 
 
@@ -119,40 +118,40 @@ MainWindow::~MainWindow()
 }
 
 
-//This changes time interval when the value of comboBox_timeinterval is changed and sets settings of the x-axis
+//Changes time interval and settings of the x-axis when the value of comboBox_timeinterval is changed
 void MainWindow::on_comboBox_timeinterval_currentIndexChanged(int index)
 {
-    if(ui->comboBox_timeinterval->currentIndex()==0)
+    if(index==0)
     {
         timeInterval=2;
         ui->plotter->xAxis->setDateTimeFormat("hh:mm:ss");
         ui->plotter->xAxis->setTickStep(1);
     }
-    else if(ui->comboBox_timeinterval->currentIndex()==1)
+    else if(index==1)
     {
         timeInterval=5;
         ui->plotter->xAxis->setDateTimeFormat("hh:mm:ss");
         ui->plotter->xAxis->setTickStep(1);
     }
-    else if(ui->comboBox_timeinterval->currentIndex()==2)
+    else if(index==2)
     {
         timeInterval=15;
         ui->plotter->xAxis->setDateTimeFormat("hh:mm:ss");
         ui->plotter->xAxis->setTickStep(5);
     }
-    else if(ui->comboBox_timeinterval->currentIndex()==3)
+    else if(index==3)
     {
         timeInterval=60;
         ui->plotter->xAxis->setDateTimeFormat("hh:mm:ss");
         ui->plotter->xAxis->setTickStep(15);
     }
-    else if(ui->comboBox_timeinterval->currentIndex()==4)
+    else if(index==4)
     {
         timeInterval=300;
         ui->plotter->xAxis->setDateTimeFormat("hh:mm");
         ui->plotter->xAxis->setTickStep(60);
     }
-    else if(ui->comboBox_timeinterval->currentIndex()==5)
+    else if(index==5)
     {
         timeInterval=900;
         ui->plotter->xAxis->setDateTimeFormat("hh:mm");
@@ -165,18 +164,17 @@ void MainWindow::on_comboBox_timeinterval_currentIndexChanged(int index)
         ui->plotter->xAxis->setTickStep(300);
     }
 
-
 }
 
-//this add data to plotter when telegram is received
-void MainWindow::telegramReceived()
+//Adds data to plotter, when received
+void MainWindow::plotDataReceived()
 {
     //timestamp of current time
     double timeStamp = QDateTime::currentDateTime().toMSecsSinceEpoch()/1000.0;
 
     //This reads value from telgram variable number plotableVariable which has been set in MainWindow::MainWindow
     double value;
-    telegramListen->readData(plotableVariable,value);
+    telegramPlotData->readData(plotableVariable,value);
 
     //this adds data to the graph, removes unnecessary data points etc.
     //for example, see details from http://qcustomplot.com/index.php/demos/realtimedatademo
@@ -187,15 +185,29 @@ void MainWindow::telegramReceived()
     ui->plotter->replot();
 }
 
+void MainWindow::counterReceived()
+{
+    bool receivedHeartBeat;
+    int receivedCounter;
+
+    telegramReceivedCounter->readData(0,receivedHeartBeat);
+    telegramReceivedCounter->readData(1,receivedCounter);
+
+    ui->label_receivedHB->setText(QString::number(receivedHeartBeat));
+    ui->label_receivedCounter->setText(QString::number(receivedCounter));
+
+}
+
 void MainWindow::on_pushButton_counter_clicked()
 {
     counter++;
 
-    telegramBroadcast->readData(0,heartbeat);
-    telegramBroadcast->setData(0,!heartbeat);
-    telegramBroadcast->setData(1,counter);
-    socket->broadcastTelegram(telegramBroadcast);
+    telegramBroadcastedCounter->readData(0,heartbeat);
+    telegramBroadcastedCounter->setData(0,!heartbeat);
+    telegramBroadcastedCounter->setData(1,counter);
+    socket->broadcastTelegram(telegramBroadcastedCounter);
 
-    ui->label_counter->setText(QString::number(counter));
+    ui->label_broadcastedHB->setText(QString::number(!heartbeat));
+    ui->label_broadcastedCounter->setText(QString::number(counter));
 
 }

@@ -47,8 +47,11 @@ public:
 private slots:
     void on_comboBox_timeinterval_currentIndexChanged(int index);
 
-    //Slot which is connected to update signal of the telegram
-    void telegramReceived(void);
+    //Slot which is connected to updated() signal of telegramPlotData
+    void plotDataReceived(void);
+
+    //Slot which is connected to updated() signal of telegramReceivedCounter
+    void counterReceived(void);
 
     void on_pushButton_counter_clicked();
 
@@ -59,10 +62,13 @@ private:
     QCodesysNVSocket *socket;
 
     //Codesys network variable telegram, which is listened
-    QCodesysNVTelegram *telegramListen;
+    QCodesysNVTelegram *telegramPlotData;
+
+    //Codesys network variable telegram, which is listened
+    QCodesysNVTelegram *telegramReceivedCounter;
 
     //Codesys network variable telegram, which is broadcasted
-    QCodesysNVTelegram *telegramBroadcast;
+    QCodesysNVTelegram *telegramBroadcastedCounter;
 
     //time interval of the plotter
     double timeInterval;
