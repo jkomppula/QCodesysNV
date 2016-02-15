@@ -54,7 +54,7 @@ MainWindow::MainWindow(QWidget *parent) :
     telegramPlotData->setVariableTypes(variablesPlotData);
 
     //index of QList variablesPlotData which is plotted
-    plotableVariable=4;
+    plotableVariable=3;
 
 
     //Counter telegrams contain two variables: heart beat and counter
