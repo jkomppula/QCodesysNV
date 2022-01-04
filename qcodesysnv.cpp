@@ -330,6 +330,8 @@ int QCodesysNVTelegram::variableCount()
 void QCodesysNVTelegram::recalculateDataPositions()
 {
     totalDataLength=0;
+    dataLengths.clear();
+    dataPositions.clear();
     for (int i=0;i<variableTypeList.size();i++)
     {
         dataLengths.push_back(variableTypeList[i].size);
